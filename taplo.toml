@@ -1,0 +1,27 @@
+include = [ "**/*.toml" ]
+
+exclude = [ ".cargo/**", ".git/**", "target/**", "**/Cargo.lock" ]
+
+[formatting]
+
+# Indentation
+indent_string = "    "
+
+# Arrays formatting
+array_auto_expand   = true
+array_auto_collapse = false
+compact_arrays      = false
+
+# Inline tables
+compact_inline_tables = false
+
+# Alignment
+align_entries  = true
+align_comments = true
+
+# Layout
+allowed_blank_lines = 1
+column_width        = 100
+
+# File ending
+trailing_newline = true
