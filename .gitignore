@@ -1,0 +1,5 @@
+### Rust ###
+debug/
+target/
+**/*.rs.bk
+*.pdb

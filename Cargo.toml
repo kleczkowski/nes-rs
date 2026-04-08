@@ -1,0 +1,55 @@
+[package]
+name        = "nes-rs"
+description = "A NES emulator written in Rust"
+version     = "0.1.0"
+authors     = [ "Konrad Kleczkowski <konrad@kleczkow.ski>" ]
+license     = "MIT"
+repository  = "https://github.com/kleczkowski/nes-rs"
+edition     = "2024"
+
+[lints.rust]
+missing-docs          = "warn"
+nonstandard-style     = "warn"
+redundant-lifetimes   = "warn"
+rust-2018-idioms      = "deny"
+unreachable-pub       = "warn"
+unsafe-code           = "deny"
+unused-extern-crates  = "warn"
+unused-imports        = "warn"
+unused-must-use       = "warn"
+unused-qualifications = "warn"
+unused-results        = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+# Panic prevention
+unwrap-used        = "deny"
+expect-used        = "warn"
+panic-in-result-fn = "warn"
+unimplemented      = "deny"
+indexing-slicing   = "warn"
+
+# Code hygiene
+dbg-macro             = "warn"
+todo                  = "deny"
+print-stdout          = "deny"
+print-stderr          = "deny"
+redundant-clone       = "warn"
+uninlined-format-args = "warn"
+manual-string-new     = "warn"
+use-self              = "deny"
+
+# Safety
+await-holding-lock = "deny"
+large-futures      = "deny"
+exit               = "deny"
+mem-forget         = "deny"
+
+# Pedantic relaxations
+module-name-repetitions = "allow"
+must-use-candidate      = "allow"
+similar-names           = "allow"
+
+[lints.rustdoc]
+all = "warn"
