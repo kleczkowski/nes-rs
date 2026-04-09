@@ -1,0 +1,14 @@
+[book]
+authors = ["Konrad Kleczkowski"]
+language = "en"
+src = "src"
+title = "nes-rs — NES Emulator Documentation"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/kleczkowski/nes-rs"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]

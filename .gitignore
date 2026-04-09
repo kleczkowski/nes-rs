@@ -6,3 +6,8 @@ target/
 
 ### Build artifacts ###
 dist/
+
+### mdBook ###
+docs/book/
+docs/mermaid.min.js
+docs/mermaid-init.js
