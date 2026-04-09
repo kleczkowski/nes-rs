@@ -9,6 +9,7 @@
 #   make test       — run tests
 #   make clean      — remove build artefacts
 #   make package    — build + strip + tar/zip for the host target
+#   make docs       — build mdBook documentation
 #
 # Cross-compilation (requires the target toolchain installed):
 #   make release TARGET=x86_64-pc-windows-gnu
@@ -91,15 +92,27 @@ else
   ARCHIVE_STEM := $(BINARY)-$(VERSION)-$(shell rustc -vV | grep host | awk '{print $$2}')
 endif
 
+# Extra files bundled into every release archive.
+BUNDLE_FILES := README.md LICENSE
+
 .PHONY: package
 package: release
 ifneq (,$(findstring windows,$(TARGET))$(findstring windows,$(shell rustc -vV 2>/dev/null | grep host)))
 	@mkdir -p dist
 	cd $(TARGET_DIR) && zip -j ../../../dist/$(ARCHIVE_STEM).zip $(BINARY)$(EXT)
+	zip -j dist/$(ARCHIVE_STEM).zip $(BUNDLE_FILES)
 	@echo "Packaged: dist/$(ARCHIVE_STEM).zip"
 else
 	@mkdir -p dist
 	strip $(TARGET_DIR)/$(BINARY)$(EXT) 2>/dev/null || true
-	tar -czf dist/$(ARCHIVE_STEM).tar.gz -C $(TARGET_DIR) $(BINARY)$(EXT)
+	tar -czf dist/$(ARCHIVE_STEM).tar.gz \
+		-C $(TARGET_DIR) $(BINARY)$(EXT) \
+		-C $(CURDIR) $(BUNDLE_FILES)
 	@echo "Packaged: dist/$(ARCHIVE_STEM).tar.gz"
 endif
+
+# ── Docs ────────────────────────────────────────────────────────
+
+.PHONY: docs
+docs:
+	mdbook build docs
