@@ -65,8 +65,13 @@ pub(crate) trait Emulator {
     fn region(&self) -> Region;
     fn set_region_override(&mut self, region: Option<Region>);
     fn load_rom(&mut self, data: &[u8]) -> anyhow::Result<()>;
+    fn reset(&mut self);
+    fn snapshot(&self) -> Option<Snapshot>;
+    fn restore(&mut self, snapshot: &Snapshot);
 }
 ```
+
+The `snapshot()`/`restore()` methods enable the rewind feature. `reset()` performs a soft reset (re-reads the reset vector without reloading the cartridge).
 
 This trait-based design means the core could be reused with a different frontend (e.g., a web-based renderer via WASM) without any changes.
 
@@ -124,6 +129,10 @@ The APU follows the hardware structure closely:
 All mappers implement the `Mapper` trait. The `from_cartridge()` factory function inspects the mapper ID from the iNES header and returns the appropriate implementation as a `Box<dyn Mapper>`.
 
 Mappers that support scanline counting (MMC3) implement `notify_scanline()` — called by the PPU at cycle 260 of each visible scanline.
+
+### Snapshot-friendly design
+
+PRG-ROM is stored as `Arc<[u8]>` in every mapper, so cloning a mapper for a snapshot is cheap — only the mutable bank-switching state is copied. All mappers derive `Clone` and implement `box_clone()` to support cloning behind `Box<dyn Mapper>`.
 
 ## Linting and safety
 

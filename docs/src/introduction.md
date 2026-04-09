@@ -19,6 +19,8 @@ Whether you want to play games or understand the engineering behind a classic co
 - **10 mappers** — NROM (0), MMC1 (1), UxROM (2), CNROM (3), MMC3 (4), AxROM (7), MMC2 (9), Color Dreams (11), GxROM (66), Camerica (71).
 - **NTSC and PAL** — Auto-detected from the iNES header or forced via CLI flag.
 - **Raylib frontend** — Hardware-accelerated rendering, lock-free audio, three scaling modes, gamepad support, drag-and-drop ROM loading, and an in-app settings panel.
+- **Rewind** — Hold R to rewind up to 10 seconds of gameplay and resume from any point, VHS-style.
+- **Quality-of-life** — Pause (P), soft reset (F5), fullscreen (F11), fast forward (hold Tab, 4×), mute (M).
 
 ## Source code
 

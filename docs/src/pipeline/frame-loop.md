@@ -7,15 +7,23 @@ The emulation loop is the heart of nes-rs. It converts wall-clock time into the 
 ```mermaid
 flowchart TD
     A[Window event loop] --> B[Measure wall-clock delta]
-    B --> C[Convert to CPU cycles]
-    C --> D{Cycles remaining?}
-    D -->|Yes| E[Execute one CPU instruction]
+    B --> RW{R held?}
+    RW -->|Yes| RWR[Pop snapshot, restore]
+    RWR --> J
+    RW -->|No| C[Convert to CPU cycles]
+    C --> FF{Tab held?}
+    FF -->|Yes| FFM["Multiply dt by 4×"]
+    FF -->|No| FFN[Use normal dt]
+    FFM --> D
+    FFN --> D
+    D{Cycles remaining?} -->|Yes| E[Execute one CPU instruction]
     E --> F[Tick APU for N cycles]
     F --> G[Tick PPU via Bresenham]
     G --> H[Handle interrupts]
     H --> D
     D -->|No| I[Flush audio samples]
-    I --> J[Upload framebuffer to GPU]
+    I --> SS[Save snapshot to ring buffer]
+    SS --> J[Upload framebuffer to GPU]
     J --> K[Draw frame]
     K --> A
 ```
@@ -113,3 +121,17 @@ TickOutput::FrameReady => {
 ```
 
 The frontend always reads from `fb_front`, which holds the last complete frame. This prevents tearing from displaying a partially-rendered frame.
+
+## Rewind
+
+After each frame, the frontend calls `emu.snapshot()` to capture the full emulator state (CPU, PPU, APU, Bus, framebuffer) and pushes it into a `VecDeque<Snapshot>` ring buffer with a capacity of 600 entries (~10 seconds at 60 fps).
+
+When the user holds R, the frontend pops one snapshot per frame from the back of the buffer and calls `emu.restore()`. This replays the game in reverse. When R is released, the emulator resumes forward from the restored state.
+
+### Snapshot cost
+
+Snapshots are cheap to clone because PRG-ROM (the largest component, up to 512 KB) is stored as `Arc<[u8]>` — cloning it is just a reference count bump. The mutable state (2 KB RAM, 2 KB VRAM, OAM, registers, APU channels) totals ~5 KB. The framebuffer adds 245 KB. Total: ~250 KB per snapshot, or ~150 MB for the full 600-entry buffer.
+
+## Fast forward
+
+Holding Tab multiplies the wall-clock delta by 4× before passing it to `update()`. The emulator runs 4× the normal CPU cycles per frame, producing 4 frames of PPU output (only the last is displayed). Audio is produced at 4× rate and overflows the ring buffer, which is expected.

@@ -9,10 +9,13 @@ A cycle-aware NES (Nintendo Entertainment System) emulator written in Rust.
 - **APU** — All five channels (2× pulse, triangle, noise, DMC) with frame sequencer, DC-blocking filters, and Bresenham down-sampling to 44.1 kHz
 - **10 mappers** — NROM (0), MMC1 (1), UxROM (2), CNROM (3), MMC3 (4), AxROM (7), MMC2 (9), Color Dreams (11), GxROM (66), Camerica (71)
 - **NTSC & PAL** — Auto-detected from the iNES header or forced via CLI flag
-- **Scaling modes** — Centered, aspect-fit, and stretch
+- **Scaling modes** — Centered (with configurable integer scale), aspect-fit, and stretch
 - **Gamepad & keyboard** — Configurable bindings, two-player support
 - **Drag-and-drop** — Drop a `.nes` file onto the window to load it
 - **In-app config panel** — Press F1 to adjust volume, FPS, V-Sync, sprite limit, scale mode, region, and controls
+- **Rewind** — Hold R to rewind up to 10 seconds, release to resume
+- **Fast forward** — Hold Tab for 4× speed
+- **Pause, reset, fullscreen, mute** — P, F5, F11, M
 
 ## Requirements
 
@@ -59,6 +62,12 @@ If no ROM is provided, the emulator starts empty — press **F3** to open the fi
 |-----|--------|
 | F1 | Toggle config panel |
 | F3 | Open file browser |
+| F5 | Soft reset |
+| F11 | Toggle fullscreen |
+| P | Pause / resume |
+| M | Mute / unmute |
+| R (hold) | Rewind (~10 s buffer) |
+| Tab (hold) | Fast forward (4×) |
 
 ### Default controls
 
