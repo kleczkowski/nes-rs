@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            deps: >-
+              libgl-dev
+              libx11-dev
+              libxcursor-dev
+              libxrandr-dev
+              libxinerama-dev
+              libxi-dev
+              libasound2-dev
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+            deps: ""
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            deps: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.deps }}
+
+      - run: rustup target add ${{ matrix.target }}
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd target/${{ matrix.target }}/release
+          strip nes-rs 2>/dev/null || true
+          tar -czf ../../../nes-rs-${{ matrix.target }}.tar.gz nes-rs
+        shell: bash
+
+      - name: Package (Windows)
+        if: matrix.archive == 'zip'
+        run: Compress-Archive -Path target/${{ matrix.target }}/release/nes-rs.exe -DestinationPath nes-rs-${{ matrix.target }}.zip
+        shell: pwsh
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nes-rs-${{ matrix.target }}
+          path: nes-rs-${{ matrix.target }}.*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      # github.ref_name is safe here — tags are created by repo
+      # maintainers, not by external contributors.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --title "$TAG_NAME" \
+            --generate-notes \
+            artifacts/*
