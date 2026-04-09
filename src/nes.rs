@@ -177,6 +177,9 @@ impl Nes {
 
 impl Emulator for Nes {
     fn update(&mut self, dt_ms: f64) {
+        if !self.bus.has_mapper() {
+            return;
+        }
         let cpu_clock_hz = self.region.cpu_clock_hz();
         let cpu_cycles_per_ms = f64::from(cpu_clock_hz) / 1000.0;
         let (ppu_num, ppu_den) = self.region.ppu_ratio();
