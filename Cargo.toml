@@ -25,7 +25,6 @@ pedantic = { level = "warn", priority = -1 }
 
 # Panic prevention
 unwrap-used        = "deny"
-expect-used        = "warn"
 panic-in-result-fn = "warn"
 unimplemented      = "deny"
 indexing-slicing   = "warn"
@@ -50,6 +49,20 @@ mem-forget         = "deny"
 module-name-repetitions = "allow"
 must-use-candidate      = "allow"
 similar-names           = "allow"
+
+# Cast relaxations (emulator code uses many intentional numeric casts)
+cast-possible-truncation = "allow"
+cast-possible-wrap       = "allow"
+cast-sign-loss           = "allow"
+cast-precision-loss      = "allow"
+cast-lossless            = "allow"
+
+[dependencies]
+anyhow   = "1"
+bitflags = "2"
+clap     = { version = "4", features = ["derive"] }
+nom      = "8"
+raylib   = "5.5.1"
 
 [lints.rustdoc]
 all = "warn"
