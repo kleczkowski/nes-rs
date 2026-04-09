@@ -42,10 +42,7 @@ fn init_window() -> (RaylibHandle, RaylibThread) {
 }
 
 /// Creates the screen texture (256x240, nearest-neighbor filtering).
-fn init_texture(
-    rl: &mut RaylibHandle,
-    thread: &RaylibThread,
-) -> anyhow::Result<Texture2D> {
+fn init_texture(rl: &mut RaylibHandle, thread: &RaylibThread) -> anyhow::Result<Texture2D> {
     let img = Image::gen_image_color(SCREEN_W, SCREEN_H, Color::BLACK);
     let texture = rl
         .load_texture_from_image(thread, &img)
@@ -97,11 +94,7 @@ impl App {
 
     /// Applies initial settings and records the baseline for
     /// change-detection in [`sync_settings`](Self::sync_settings).
-    fn apply_initial_settings(
-        &mut self,
-        rl: &mut RaylibHandle,
-        audio_stream: &AudioStream<'_>,
-    ) {
+    fn apply_initial_settings(&mut self, rl: &mut RaylibHandle, audio_stream: &AudioStream<'_>) {
         rl.set_target_fps(self.config.target_fps as u32);
         if self.config.vsync {
             #[allow(unsafe_code)]
@@ -235,10 +228,7 @@ impl App {
 // ── Entry point ─────────────────────────────────────────────────
 
 /// Opens a window and runs the emulator loop until the user closes it.
-pub(crate) fn run(
-    emu: &mut impl Emulator,
-    region_override: Option<Region>,
-) -> anyhow::Result<()> {
+pub(crate) fn run(emu: &mut impl Emulator, region_override: Option<Region>) -> anyhow::Result<()> {
     let (mut rl, thread) = init_window();
     rl.set_window_min_size(SCREEN_W, SCREEN_H);
     let mut texture = init_texture(&mut rl, &thread)?;

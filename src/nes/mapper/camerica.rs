@@ -40,12 +40,10 @@ impl Mapper for Camerica {
     fn cpu_read(&self, addr: u16) -> u8 {
         let offset = match addr {
             0x8000..=0xBFFF => {
-                usize::from(self.bank_select) * PRG_BANK_SIZE
-                    + usize::from(addr - 0x8000)
+                usize::from(self.bank_select) * PRG_BANK_SIZE + usize::from(addr - 0x8000)
             }
             0xC000..=0xFFFF => {
-                usize::from(self.bank_count - 1) * PRG_BANK_SIZE
-                    + usize::from(addr - 0xC000)
+                usize::from(self.bank_count - 1) * PRG_BANK_SIZE + usize::from(addr - 0xC000)
             }
             _ => return 0,
         };

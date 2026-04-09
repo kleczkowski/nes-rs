@@ -101,15 +101,11 @@ impl Mmc3 {
             (0x8000..=0x9FFF, false) | (0xC000..=0xDFFF, true) => {
                 usize::from(self.regs[6] % self.prg_bank_count)
             }
-            (0xA000..=0xBFFF, _) => {
-                usize::from(self.regs[7] % self.prg_bank_count)
-            }
+            (0xA000..=0xBFFF, _) => usize::from(self.regs[7] % self.prg_bank_count),
             (0xC000..=0xDFFF, false) | (0x8000..=0x9FFF, true) => {
                 usize::from(self.prg_bank_count - 2)
             }
-            (0xE000..=0xFFFF, _) => {
-                usize::from(self.prg_bank_count - 1)
-            }
+            (0xE000..=0xFFFF, _) => usize::from(self.prg_bank_count - 1),
             _ => return 0,
         };
         bank * PRG_BANK_SIZE + usize::from(addr & 0x1FFF)

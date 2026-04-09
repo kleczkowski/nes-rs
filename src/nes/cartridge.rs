@@ -160,8 +160,8 @@ fn parse_header(input: &[u8]) -> nom::IResult<&[u8], Header> {
         le_u8,
         le_u8,
         le_u8,
-        le_u8, // byte 8: PRG-RAM size (ignored)
-        le_u8, // byte 9: TV system flags
+        le_u8,         // byte 8: PRG-RAM size (ignored)
+        le_u8,         // byte 9: TV system flags
         take(6_usize), // bytes 10–15: padding
     )
         .map(

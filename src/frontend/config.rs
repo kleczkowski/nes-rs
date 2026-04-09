@@ -73,11 +73,11 @@ impl Config {
             return;
         }
 
-        let px = 10;
-        let py = 10;
         let pw = 400;
         let ph = 480;
         let pad = 8;
+        let px = (draw.get_screen_width() - pw) / 2;
+        let py = (draw.get_screen_height() - ph) / 2;
 
         // Background.
         draw.draw_rectangle(px, py, pw, ph, Color::new(20, 20, 20, 240));
@@ -187,12 +187,7 @@ impl Config {
         );
         let mut idx = self.scale_mode.to_index();
         let _ = draw.gui_toggle_group(
-            Rectangle::new(
-                (px + pad + 70) as f32,
-                smy,
-                100.0,
-                20.0,
-            ),
+            Rectangle::new((px + pad + 70) as f32, smy, 100.0, 20.0),
             ScaleMode::LABELS,
             &mut idx,
         );
@@ -200,10 +195,7 @@ impl Config {
 
         // Region.
         let ry = smy + row as f32;
-        let _ = draw.gui_label(
-            Rectangle::new((px + pad) as f32, ry, 70.0, 20.0),
-            "Region",
-        );
+        let _ = draw.gui_label(Rectangle::new((px + pad) as f32, ry, 70.0, 20.0), "Region");
         let mut ridx = region_to_index(self.region_override);
         let _ = draw.gui_toggle_group(
             Rectangle::new((px + pad + 70) as f32, ry, 100.0, 20.0),

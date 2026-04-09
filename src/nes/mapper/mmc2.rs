@@ -89,13 +89,11 @@ impl Mapper for Mmc2 {
     fn cpu_read(&self, addr: u16) -> u8 {
         let offset = match addr {
             0x8000..=0x9FFF => {
-                usize::from(self.prg_bank) * PRG_BANK_SIZE
-                    + usize::from(addr - 0x8000)
+                usize::from(self.prg_bank) * PRG_BANK_SIZE + usize::from(addr - 0x8000)
             }
             // Last three 8 KB banks are fixed.
             0xA000..=0xFFFF => {
-                let fixed_start =
-                    usize::from(self.prg_bank_count - 3) * PRG_BANK_SIZE;
+                let fixed_start = usize::from(self.prg_bank_count - 3) * PRG_BANK_SIZE;
                 fixed_start + usize::from(addr - 0xA000)
             }
             _ => return 0,
@@ -127,8 +125,7 @@ impl Mapper for Mmc2 {
         let offset = if addr < 0x1000 {
             usize::from(self.chr_bank_0()) * CHR_BANK_SIZE + usize::from(addr)
         } else {
-            usize::from(self.chr_bank_1()) * CHR_BANK_SIZE
-                + usize::from(addr - 0x1000)
+            usize::from(self.chr_bank_1()) * CHR_BANK_SIZE + usize::from(addr - 0x1000)
         };
         let val = self.chr_rom.get(offset).copied().unwrap_or(0);
 
