@@ -47,11 +47,7 @@ impl Mmc1 {
     pub(super) fn new(cart: Cartridge) -> Self {
         let (prg_rom, chr_rom, _mirroring) = cart.into_parts();
         let chr_is_ram = chr_rom.is_empty();
-        let chr = if chr_is_ram {
-            vec![0; 8192]
-        } else {
-            chr_rom
-        };
+        let chr = if chr_is_ram { vec![0; 8192] } else { chr_rom };
         let prg_bank_count = (prg_rom.len() / PRG_BANK_SIZE) as u8;
         Self {
             prg_rom,

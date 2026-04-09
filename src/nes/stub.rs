@@ -5,10 +5,10 @@
 
 #![allow(dead_code)]
 
-use super::{Emulator, Snapshot};
 use super::controller::Buttons;
 use super::framebuffer::{Framebuffer, HEIGHT, WIDTH};
 use super::region::Region;
+use super::{Emulator, Snapshot};
 
 /// Stub emulator that renders an animated test pattern.
 pub(crate) struct StubEmulator {

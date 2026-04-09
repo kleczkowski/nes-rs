@@ -50,7 +50,12 @@ impl ScaleMode {
 ///
 /// `centered_scale` is only used by [`ScaleMode::Centered`] and
 /// multiplies the native resolution by an integer factor.
-pub(super) fn scale_dest(mode: ScaleMode, win_w: f32, win_h: f32, centered_scale: i32) -> Rectangle {
+pub(super) fn scale_dest(
+    mode: ScaleMode,
+    win_w: f32,
+    win_h: f32,
+    centered_scale: i32,
+) -> Rectangle {
     match mode {
         ScaleMode::Centered => {
             let scale = (centered_scale.max(1)) as f32;

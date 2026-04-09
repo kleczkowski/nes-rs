@@ -199,10 +199,7 @@ impl Config {
         // Centered scale factor (only shown when Centered is selected).
         if self.scale_mode == ScaleMode::Centered {
             let sfy = smy + row as f32;
-            let _ = draw.gui_label(
-                Rectangle::new((px + pad) as f32, sfy, 70.0, 20.0),
-                "Scale",
-            );
+            let _ = draw.gui_label(Rectangle::new((px + pad) as f32, sfy, 70.0, 20.0), "Scale");
             let _ = draw.gui_spinner(
                 Rectangle::new((px + pad + 70) as f32, sfy, 120.0, 20.0),
                 "",

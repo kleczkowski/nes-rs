@@ -279,8 +279,12 @@ impl App {
         let win_w = draw.get_screen_width() as f32;
         let win_h = draw.get_screen_height() as f32;
         let src = video::framebuffer_src();
-        let dest =
-            video::scale_dest(self.config.scale_mode, win_w, win_h, self.config.centered_scale);
+        let dest = video::scale_dest(
+            self.config.scale_mode,
+            win_w,
+            win_h,
+            self.config.centered_scale,
+        );
         draw.draw_texture_pro(texture, src, dest, Vector2::zero(), 0.0, Color::WHITE);
 
         self.config.draw(&mut draw);

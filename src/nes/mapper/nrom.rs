@@ -27,11 +27,7 @@ impl Nrom {
     pub(super) fn new(cart: Cartridge) -> Self {
         let (prg_rom, chr_rom, mirroring) = cart.into_parts();
         let chr_is_ram = chr_rom.is_empty();
-        let chr = if chr_is_ram {
-            vec![0; 8192]
-        } else {
-            chr_rom
-        };
+        let chr = if chr_is_ram { vec![0; 8192] } else { chr_rom };
         Self {
             prg_rom,
             chr,
