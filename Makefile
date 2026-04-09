@@ -115,4 +115,5 @@ endif
 
 .PHONY: docs
 docs:
+	mdbook-mermaid install docs
 	mdbook build docs
