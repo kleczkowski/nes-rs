@@ -115,5 +115,10 @@ pub(crate) fn init_audio_stream(audio: &RaylibAudio) -> AudioStream<'_> {
     }
 
     stream.play();
+    tracing::info!(
+        sample_rate = nes::SAMPLE_RATE,
+        buffer_size = BUFFER_SIZE,
+        "audio stream initialized",
+    );
     stream
 }

@@ -124,7 +124,10 @@ impl Emulator for Nes {
             let step = self.cpu_step();
             let cycles = match step {
                 Ok(ok) => ok.cycles(),
-                Err(_) => break,
+                Err(e) => {
+                    tracing::warn!(error = ?e, pc = format_args!("${:04X}", self.cpu.pc), "CPU halted");
+                    break;
+                }
             };
 
             cycles_run += u64::from(cycles);
@@ -202,11 +205,16 @@ impl Emulator for Nes {
     }
 
     fn load_rom(&mut self, data: &[u8]) -> anyhow::Result<()> {
+        tracing::info!(size = data.len(), "loading ROM");
         let cart = Cartridge::from_ines(data)?;
         self.bus.load_cartridge(cart)?;
         self.bus.apu = self.apu.take();
         self.cpu.reset(&mut self.bus, &mut self.ppu);
         self.apu = self.bus.apu.take();
+        tracing::info!(
+            reset_vector = format_args!("${:04X}", self.cpu.pc),
+            "emulator reset complete",
+        );
         Ok(())
     }
 }

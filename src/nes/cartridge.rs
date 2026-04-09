@@ -95,6 +95,13 @@ impl Cartridge {
     /// (bad magic, truncated, or malformed header).
     pub(crate) fn from_ines(data: &[u8]) -> anyhow::Result<Self> {
         let (_, cart) = parse_ines(data).map_err(|e| anyhow::anyhow!("iNES parse error: {e}"))?;
+        tracing::info!(
+            mapper_id = cart.mapper_id,
+            prg_size = cart.prg_rom.len(),
+            chr_size = cart.chr_rom.len(),
+            mirroring = ?cart.mirroring,
+            "parsed iNES ROM",
+        );
         Ok(cart)
     }
 

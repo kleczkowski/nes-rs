@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use nes::{Emulator, Nes};
+use tracing_subscriber::EnvFilter;
 
 /// NES emulator written in Rust.
 #[derive(Parser)]
@@ -20,14 +21,21 @@ struct Args {
 }
 
 fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+
     let args = Args::parse();
 
     let mut emu = Nes::new();
 
-    if let Some(path) = args.rom {
-        let data = std::fs::read(&path)
+    if let Some(ref path) = args.rom {
+        tracing::info!(path = %path.display(), "loading ROM from CLI argument");
+        let data = std::fs::read(path)
             .map_err(|e| anyhow::anyhow!("failed to read {}: {e}", path.display()))?;
         emu.load_rom(&data)?;
+    } else {
+        tracing::info!("starting with no ROM loaded — press F3 to open file browser");
     }
 
     frontend::run(&mut emu)

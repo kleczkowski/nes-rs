@@ -21,7 +21,13 @@ const SCALE: i32 = 3;
 const SCALE_F: f32 = SCALE as f32;
 
 /// Opens a window and runs the emulator loop until the user closes it.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
+    tracing::info!(
+        width = SCREEN_W * SCALE,
+        height = SCREEN_H * SCALE,
+        "opening window",
+    );
     let (mut rl, thread) = init()
         .size(SCREEN_W * SCALE, SCREEN_H * SCALE)
         .title("nes-rs")
@@ -61,10 +67,12 @@ pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
         if !config.is_visible() {
             if config.target_fps != applied_fps {
                 applied_fps = config.target_fps;
+                tracing::debug!(fps = applied_fps, "target FPS changed");
                 rl.set_target_fps(applied_fps as u32);
             }
             if config.vsync != applied_vsync {
                 applied_vsync = config.vsync;
+                tracing::debug!(vsync = applied_vsync, "V-Sync changed");
                 if applied_vsync {
                     #[allow(unsafe_code)]
                     unsafe {
@@ -95,17 +103,31 @@ pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
         }
 
         // ── ROM loading ──────────────────────────────────────
-        if let Some(path) = file_browser.take_picked()
-            && let Ok(data) = std::fs::read(&path)
-        {
-            let _ = emu.load_rom(&data);
+        if let Some(path) = file_browser.take_picked() {
+            match std::fs::read(&path) {
+                Ok(data) => {
+                    if let Err(e) = emu.load_rom(&data) {
+                        tracing::error!(path = %path.display(), error = %e, "failed to load ROM");
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(path = %path.display(), error = %e, "failed to read ROM file");
+                }
+            }
         }
         if rl.is_file_dropped() {
             let dropped = rl.load_dropped_files();
-            if let Some(&path) = dropped.paths().first()
-                && let Ok(data) = std::fs::read(path)
-            {
-                let _ = emu.load_rom(&data);
+            if let Some(&path) = dropped.paths().first() {
+                match std::fs::read(path) {
+                    Ok(data) => {
+                        if let Err(e) = emu.load_rom(&data) {
+                            tracing::error!(path = %path, error = %e, "failed to load dropped ROM");
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!(path = %path, error = %e, "failed to read dropped file");
+                    }
+                }
             }
         }
 

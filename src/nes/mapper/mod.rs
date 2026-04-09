@@ -48,11 +48,17 @@ pub(crate) trait Mapper {
 ///
 /// Returns an error if the cartridge's mapper ID is not supported.
 pub(crate) fn from_cartridge(cart: Cartridge) -> anyhow::Result<Box<dyn Mapper>> {
-    match cart.mapper_id() {
-        0 => Ok(Box::new(nrom::Nrom::new(cart))),
-        1 => Ok(Box::new(mmc1::Mmc1::new(cart))),
-        2 => Ok(Box::new(uxrom::Uxrom::new(cart))),
-        3 => Ok(Box::new(cnrom::Cnrom::new(cart))),
-        id => anyhow::bail!("unsupported mapper: {id}"),
-    }
+    let id = cart.mapper_id();
+    let mapper: Box<dyn Mapper> = match id {
+        0 => Box::new(nrom::Nrom::new(cart)),
+        1 => Box::new(mmc1::Mmc1::new(cart)),
+        2 => Box::new(uxrom::Uxrom::new(cart)),
+        3 => Box::new(cnrom::Cnrom::new(cart)),
+        _ => {
+            tracing::error!(mapper_id = id, "unsupported mapper");
+            anyhow::bail!("unsupported mapper: {id}");
+        }
+    };
+    tracing::info!(mapper_id = id, "mapper initialized");
+    Ok(mapper)
 }
