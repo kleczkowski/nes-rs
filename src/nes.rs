@@ -11,10 +11,12 @@ mod cpu;
 mod framebuffer;
 mod mapper;
 mod ppu;
+pub(crate) mod region;
 mod stub;
 
 pub(crate) use controller::Buttons;
 pub(crate) use framebuffer::{Framebuffer, HEIGHT as SCREEN_HEIGHT, WIDTH as SCREEN_WIDTH};
+pub(crate) use region::Region;
 
 use apu::Apu;
 use bus::Bus;
@@ -24,14 +26,8 @@ use ppu::{Ppu, TickOutput};
 
 use crate::frontend::audio;
 
-/// NTSC CPU clock rate in Hz.
-pub(crate) const CPU_CLOCK_HZ: u32 = 1_789_773;
-
 /// Audio output sample rate in Hz.
 pub(crate) const SAMPLE_RATE: u32 = 44_100;
-
-/// CPU cycles per millisecond (NTSC).
-const CPU_CYCLES_PER_MS: f64 = CPU_CLOCK_HZ as f64 / 1000.0;
 
 /// Trait that any NES emulator implementation must satisfy
 /// for the frontend to drive it.
@@ -47,6 +43,9 @@ pub(crate) trait Emulator {
 
     /// Enables or disables the 8-sprite-per-scanline limit.
     fn set_sprite_limit(&mut self, enabled: bool);
+
+    /// Returns the active TV region.
+    fn region(&self) -> Region;
 
     /// Loads an iNES ROM, resetting the emulator.
     ///
@@ -77,6 +76,12 @@ pub(crate) struct Nes {
     hp1_out: f32,
     hp2_in: f32,
     hp2_out: f32,
+    /// Active TV region (determines all timing).
+    region: Region,
+    /// CLI override — when set, ignores the cartridge header.
+    region_override: Option<Region>,
+    /// Fractional PPU dot accumulator for non-integer PPU/CPU ratios.
+    ppu_frac: u16,
 }
 
 /// High-pass coefficient for each stage (~35 Hz at 44 100 Hz).
@@ -87,7 +92,10 @@ const HP_ALPHA: f32 = 0.995;
 
 impl Nes {
     /// Creates a new NES with no cartridge loaded.
-    pub(crate) fn new() -> Self {
+    ///
+    /// If `region_override` is `Some`, it takes precedence over
+    /// whatever the iNES header says when a ROM is loaded.
+    pub(crate) fn new(region_override: Option<Region>) -> Self {
         Self {
             cpu: Cpu::new(),
             ppu: Ppu::new(),
@@ -101,7 +109,21 @@ impl Nes {
             hp1_out: 0.0,
             hp2_in: 0.0,
             hp2_out: 0.0,
+            region: Region::default(),
+            region_override,
+            ppu_frac: 0,
         }
+    }
+
+    /// Applies a region change to all timing-sensitive subsystems.
+    fn apply_region(&mut self, region: Region) {
+        self.region = region;
+        self.ppu.set_region(region);
+        if let Some(apu) = &mut self.apu {
+            apu.set_region(region);
+        }
+        self.ppu_frac = 0;
+        tracing::info!(%region, "timing configured");
     }
 
     /// Parks the APU in the Bus for register routing, runs
@@ -116,7 +138,11 @@ impl Nes {
 
 impl Emulator for Nes {
     fn update(&mut self, dt_ms: f64) {
-        let target_cycles = (dt_ms * CPU_CYCLES_PER_MS) as u64;
+        let cpu_clock_hz = self.region.cpu_clock_hz();
+        let cpu_cycles_per_ms = f64::from(cpu_clock_hz) / 1000.0;
+        let (ppu_num, ppu_den) = self.region.ppu_ratio();
+
+        let target_cycles = (dt_ms * cpu_cycles_per_ms) as u64;
         let mut cycles_run: u64 = 0;
         let mut sample_batch = Vec::with_capacity(128);
 
@@ -148,8 +174,8 @@ impl Emulator for Nes {
 
                     // Bresenham down-sampler: point-sample at SAMPLE_RATE.
                     self.sample_clock += SAMPLE_RATE;
-                    if self.sample_clock >= CPU_CLOCK_HZ {
-                        self.sample_clock -= CPU_CLOCK_HZ;
+                    if self.sample_clock >= cpu_clock_hz {
+                        self.sample_clock -= cpu_clock_hz;
 
                         let s = apu.out_sample;
 
@@ -168,20 +194,23 @@ impl Emulator for Nes {
                 }
             }
 
-            // PPU runs 3 dots per CPU cycle.
-            for _ in 0..u16::from(cycles) * 3 {
-                let Some(mapper) = self.bus.mapper_mut() else {
-                    continue;
-                };
-                match self.ppu.tick(mapper, &mut self.fb) {
-                    TickOutput::Nmi => self.cpu.request_nmi(),
-                    TickOutput::FrameReady => {
-                        // Swap back→front so the display always
-                        // sees a fully rendered frame.
-                        std::mem::swap(&mut self.fb, &mut self.fb_front);
-                        self.frame_ready = true;
+            // PPU runs at ppu_num/ppu_den dots per CPU cycle.
+            // Bresenham accumulator distributes fractional ticks evenly.
+            for _ in 0..cycles {
+                self.ppu_frac += ppu_num;
+                while self.ppu_frac >= ppu_den {
+                    self.ppu_frac -= ppu_den;
+                    let Some(mapper) = self.bus.mapper_mut() else {
+                        continue;
+                    };
+                    match self.ppu.tick(mapper, &mut self.fb) {
+                        TickOutput::Nmi => self.cpu.request_nmi(),
+                        TickOutput::FrameReady => {
+                            std::mem::swap(&mut self.fb, &mut self.fb_front);
+                            self.frame_ready = true;
+                        }
+                        TickOutput::Idle => {}
                     }
-                    TickOutput::Idle => {}
                 }
             }
         }
@@ -204,10 +233,24 @@ impl Emulator for Nes {
         self.ppu.sprite_limit = enabled;
     }
 
+    fn region(&self) -> Region {
+        self.region
+    }
+
     fn load_rom(&mut self, data: &[u8]) -> anyhow::Result<()> {
         tracing::info!(size = data.len(), "loading ROM");
         let cart = Cartridge::from_ines(data)?;
+        let detected = cart.region();
+        let region = self.region_override.unwrap_or(detected);
+        if self.region_override.is_some() && detected != region {
+            tracing::info!(
+                detected = %detected,
+                override_to = %region,
+                "region override active",
+            );
+        }
         self.bus.load_cartridge(cart)?;
+        self.apply_region(region);
         self.bus.apu = self.apu.take();
         self.cpu.reset(&mut self.bus, &mut self.ppu);
         self.apu = self.bus.apu.take();

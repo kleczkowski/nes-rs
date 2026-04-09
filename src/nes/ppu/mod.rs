@@ -17,6 +17,7 @@ pub(crate) use tick::TickOutput;
 
 use super::framebuffer::Framebuffer;
 use super::mapper::Mapper;
+use super::region::Region;
 
 /// Cached sprite data for one scanline position.
 #[derive(Debug, Clone, Copy, Default)]
@@ -111,11 +112,18 @@ pub(crate) struct Ppu {
     // ── NMI tracking ─────────────────────────────────────────
     /// `VBlank` NMI has fired this frame.
     pub(super) nmi_occurred: bool,
+
+    // ── Region-dependent timing ─────────────────────────────
+    /// Pre-render scanline (261 for NTSC, 311 for PAL).
+    pub(super) pre_render_line: u16,
+    /// Whether the PPU skips one dot on odd frames (NTSC only).
+    pub(super) odd_frame_skip: bool,
 }
 
 impl Ppu {
-    /// Creates a PPU in its power-on state.
+    /// Creates a PPU in its power-on state (defaults to NTSC timing).
     pub(crate) fn new() -> Self {
+        let region = Region::default();
         Self {
             vram: [0; 2048],
             oam: [0; 256],
@@ -149,7 +157,15 @@ impl Ppu {
             sprite_patterns: [SpriteRow::default(); 64],
             sprite_limit: true,
             nmi_occurred: false,
+            pre_render_line: region.pre_render_line(),
+            odd_frame_skip: region.has_odd_frame_skip(),
         }
+    }
+
+    /// Reconfigures the PPU for a different TV region.
+    pub(crate) fn set_region(&mut self, region: Region) {
+        self.pre_render_line = region.pre_render_line();
+        self.odd_frame_skip = region.has_odd_frame_skip();
     }
 
     /// Advances the PPU by one cycle.
@@ -173,8 +189,8 @@ impl Ppu {
                 }
             }
             // Pre-render scanline — prepare for next frame.
-            261 => render::pre_render_cycle(self, mapper),
-            // Post-render (240) and VBlank (242–260) — idle.
+            s if s == self.pre_render_line => render::pre_render_cycle(self, mapper),
+            // Post-render (240) and VBlank — idle.
             _ => {}
         }
 
@@ -188,7 +204,7 @@ impl Ppu {
         if self.cycle > 340 {
             self.cycle = 0;
             self.scanline += 1;
-            if self.scanline > 261 {
+            if self.scanline > self.pre_render_line {
                 self.scanline = 0;
                 self.odd_frame = !self.odd_frame;
                 *output = TickOutput::FrameReady;

@@ -22,6 +22,7 @@ use channels::pulse::Pulse;
 use channels::triangle::Triangle;
 use mixer::Mixer;
 use sequencer::FrameSequencer;
+use super::region::Region;
 
 /// APU state — owns all 5 channels, frame sequencer, and mixer.
 ///
@@ -64,6 +65,11 @@ impl Apu {
             out_sample: 0.0,
             even_cycle: false,
         }
+    }
+
+    /// Reconfigures the APU for a different TV region.
+    pub(crate) fn set_region(&mut self, region: Region) {
+        self.sequencer.set_step_cycles(region.sequencer_step_cycles());
     }
 
     /// Advances the APU by one CPU cycle.

@@ -61,6 +61,7 @@ pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
 
     let mut applied_fps: i32 = config.target_fps;
     let mut applied_vsync: bool = config.vsync;
+    let mut prev_region = emu.region();
 
     while !rl.window_should_close() {
         // ── Apply settings when config panel closes ──────────
@@ -129,6 +130,21 @@ pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
                     }
                 }
             }
+        }
+
+        // Auto-adjust target FPS when the region changes (e.g. PAL ROM loaded).
+        let current_region = emu.region();
+        if current_region != prev_region {
+            let native_fps = current_region.fps();
+            config.target_fps = native_fps;
+            applied_fps = native_fps;
+            rl.set_target_fps(native_fps as u32);
+            tracing::info!(
+                region = %current_region,
+                fps = native_fps,
+                "adjusted target FPS for region",
+            );
+            prev_region = current_region;
         }
 
         let buttons = config.poll_buttons(&rl);

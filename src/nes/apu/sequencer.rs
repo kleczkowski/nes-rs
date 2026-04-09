@@ -5,9 +5,6 @@
 //! - **4-step** (mode 0): quarter/half frame clocks + optional IRQ
 //! - **5-step** (mode 1): quarter/half frame clocks, no IRQ
 
-/// CPU cycles per frame sequencer step (NTSC, approximate).
-const STEP_CYCLES: u16 = 7457;
-
 /// Frame sequencer mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::nes) enum Mode {
@@ -37,6 +34,8 @@ pub(in crate::nes) struct FrameSequencer {
     step: u8,
     /// CPU cycle counter within the current step.
     cycle: u16,
+    /// CPU cycles per step (region-dependent).
+    step_cycles: u16,
     /// Whether frame IRQ is inhibited ($4017 bit 6).
     pub(in crate::nes) irq_inhibit: bool,
     /// Pending IRQ flag.
@@ -44,21 +43,28 @@ pub(in crate::nes) struct FrameSequencer {
 }
 
 impl FrameSequencer {
-    /// Creates a frame sequencer in its initial state.
+    /// Creates a frame sequencer in its initial state (NTSC timing).
     pub(in crate::nes) fn new() -> Self {
+        use super::super::region::Region;
         Self {
             mode: Mode::FourStep,
             step: 0,
             cycle: 0,
+            step_cycles: Region::default().sequencer_step_cycles(),
             irq_inhibit: false,
             irq_pending: false,
         }
     }
 
+    /// Updates the step period for a different TV region.
+    pub(in crate::nes) fn set_step_cycles(&mut self, cycles: u16) {
+        self.step_cycles = cycles;
+    }
+
     /// Advances by one CPU cycle and returns which clocks to fire.
     pub(in crate::nes) fn tick(&mut self) -> FrameClocks {
         self.cycle += 1;
-        if self.cycle < STEP_CYCLES {
+        if self.cycle < self.step_cycles {
             return FrameClocks::default();
         }
         self.cycle = 0;

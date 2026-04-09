@@ -8,6 +8,7 @@
 use super::Emulator;
 use super::controller::Buttons;
 use super::framebuffer::{Framebuffer, HEIGHT, WIDTH};
+use super::region::Region;
 
 /// Stub emulator that renders an animated test pattern.
 pub(crate) struct StubEmulator {
@@ -78,6 +79,10 @@ impl Emulator for StubEmulator {
     fn set_buttons(&mut self, _player: u8, _buttons: Buttons) {}
 
     fn set_sprite_limit(&mut self, _enabled: bool) {}
+
+    fn region(&self) -> Region {
+        Region::default()
+    }
 
     fn load_rom(&mut self, _data: &[u8]) -> anyhow::Result<()> {
         Ok(())

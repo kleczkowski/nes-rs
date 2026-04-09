@@ -23,6 +23,8 @@ use nom::bytes::complete::{tag, take};
 use nom::combinator::cond;
 use nom::number::complete::le_u8;
 
+use super::region::Region;
+
 /// Expected magic bytes at the start of an iNES file.
 const INES_MAGIC: &[u8; 4] = b"NES\x1a";
 
@@ -49,6 +51,7 @@ struct Header {
     chr_banks: u8,
     flags6: u8,
     flags7: u8,
+    flags9: u8,
 }
 
 impl Header {
@@ -72,6 +75,15 @@ impl Header {
     fn has_trainer(&self) -> bool {
         self.flags6 & 0x04 != 0
     }
+
+    /// TV system from flags 9 bit 0 (0 = NTSC, 1 = PAL).
+    fn region(&self) -> Region {
+        if self.flags9 & 0x01 != 0 {
+            Region::Pal
+        } else {
+            Region::Ntsc
+        }
+    }
 }
 
 /// Parsed iNES cartridge image.
@@ -84,6 +96,8 @@ pub(crate) struct Cartridge {
     mapper_id: u8,
     /// Nametable mirroring mode.
     mirroring: Mirroring,
+    /// TV system detected from iNES header.
+    region: Region,
 }
 
 impl Cartridge {
@@ -100,6 +114,7 @@ impl Cartridge {
             prg_size = cart.prg_rom.len(),
             chr_size = cart.chr_rom.len(),
             mirroring = ?cart.mirroring,
+            region = %cart.region,
             "parsed iNES ROM",
         );
         Ok(cart)
@@ -124,6 +139,11 @@ impl Cartridge {
     pub(super) fn mirroring(&self) -> Mirroring {
         self.mirroring
     }
+
+    /// Returns the TV system detected from the iNES header.
+    pub(super) fn region(&self) -> Region {
+        self.region
+    }
 }
 
 // ── nom parsers ──────────────────────────────────────────────────
@@ -136,14 +156,17 @@ fn parse_header(input: &[u8]) -> nom::IResult<&[u8], Header> {
         le_u8,
         le_u8,
         le_u8,
-        take(8_usize), // bytes 8–15: padding / extended flags
+        le_u8, // byte 8: PRG-RAM size (ignored)
+        le_u8, // byte 9: TV system flags
+        take(6_usize), // bytes 10–15: padding
     )
         .map(
-            |(_, prg_banks, chr_banks, flags6, flags7, _padding)| Header {
+            |(_, prg_banks, chr_banks, flags6, flags7, _flags8, flags9, _padding)| Header {
                 prg_banks,
                 chr_banks,
                 flags6,
                 flags7,
+                flags9,
             },
         )
         .parse(input)
@@ -167,6 +190,7 @@ fn parse_ines(input: &[u8]) -> nom::IResult<&[u8], Cartridge> {
         chr_rom: chr_rom.to_vec(),
         mapper_id: header.mapper_id(),
         mirroring: header.mirroring(),
+        region: header.region(),
     };
 
     Ok((input, cart))
@@ -254,6 +278,30 @@ mod tests {
         let cart = Cartridge::from_ines(&rom).expect("should parse ROM with trainer");
 
         assert_eq!(cart.prg_rom().len(), PRG_BANK_SIZE);
+    }
+
+    #[test]
+    fn parse_pal_region() {
+        let prg = vec![0xEA; PRG_BANK_SIZE];
+        let mut rom = make_ines(&prg, &[], 0x00, 0x00);
+        // Set byte 9 (offset 9 in header) bit 0 = 1 for PAL.
+        if let Some(byte) = rom.get_mut(9) {
+            *byte = 0x01;
+        }
+
+        let cart = Cartridge::from_ines(&rom).expect("should parse PAL ROM");
+
+        assert_eq!(cart.region(), Region::Pal);
+    }
+
+    #[test]
+    fn parse_ntsc_region_default() {
+        let prg = vec![0xEA; PRG_BANK_SIZE];
+        let rom = make_ines(&prg, &[], 0x00, 0x00);
+
+        let cart = Cartridge::from_ines(&rom).expect("should parse NTSC ROM");
+
+        assert_eq!(cart.region(), Region::Ntsc);
     }
 
     #[test]

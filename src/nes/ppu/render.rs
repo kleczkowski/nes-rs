@@ -78,8 +78,8 @@ pub(super) fn pre_render_cycle(ppu: &mut Ppu, mapper: &dyn Mapper) {
             fetch_bg_step(ppu, mapper);
         }
 
-        // Odd frame cycle skip.
-        if ppu.cycle == 339 && ppu.odd_frame {
+        // Odd frame cycle skip (NTSC only).
+        if ppu.odd_frame_skip && ppu.cycle == 339 && ppu.odd_frame {
             ppu.cycle = 340;
         }
     }
