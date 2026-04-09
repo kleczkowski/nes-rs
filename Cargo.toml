@@ -62,6 +62,7 @@ anyhow              = "1"
 bitflags            = "2"
 clap                = { version = "4", features = ["derive"] }
 nom                 = "8"
+rfd                 = { version = "0.17", default-features = false, features = ["xdg-portal"] }
 raylib              = "5.5.1"
 tracing             = "0.1.44"
 tracing-subscriber  = { version = "0.3.23", features = ["env-filter"] }
