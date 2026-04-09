@@ -59,6 +59,9 @@ pub(crate) trait Mapper {
 
     /// Acknowledges and clears a pending mapper IRQ.
     fn irq_clear(&mut self) {}
+
+    /// Returns a cloned boxed copy (for snapshot/rewind).
+    fn box_clone(&self) -> Box<dyn Mapper>;
 }
 
 /// Creates a boxed mapper for the given cartridge.

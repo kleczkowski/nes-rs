@@ -33,6 +33,7 @@ pub(super) struct SpriteRow {
 }
 
 /// PPU state: registers, VRAM, OAM, and rendering internals.
+#[derive(Clone)]
 #[allow(clippy::struct_excessive_bools)]
 pub(crate) struct Ppu {
     // ── Memory ───────────────────────────────────────────────

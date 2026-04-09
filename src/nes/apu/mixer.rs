@@ -5,6 +5,7 @@
 //! - `tnd_out = 159.79 / (1 / (t/8227 + n/12241 + d/22638) + 100.0)`
 
 /// Precomputed mixer lookup tables.
+#[derive(Clone)]
 pub(in crate::nes) struct Mixer {
     /// Pulse output table (index = pulse1 + pulse2, 0–30).
     pulse_table: [f32; 31],

@@ -18,6 +18,8 @@
 
 #![allow(dead_code)]
 
+use std::sync::Arc;
+
 use nom::Parser;
 use nom::bytes::complete::{tag, take};
 use nom::combinator::cond;
@@ -92,8 +94,8 @@ impl Header {
 
 /// Parsed iNES cartridge image.
 pub(crate) struct Cartridge {
-    /// Program ROM.
-    prg_rom: Vec<u8>,
+    /// Program ROM (reference-counted for cheap snapshot cloning).
+    prg_rom: Arc<[u8]>,
     /// Character ROM (tile/sprite data). Empty if CHR-RAM is used.
     chr_rom: Vec<u8>,
     /// Mapper number (iNES mapper ID).
@@ -132,6 +134,12 @@ impl Cartridge {
     /// Returns the PRG-ROM data.
     pub(super) fn prg_rom(&self) -> &[u8] {
         &self.prg_rom
+    }
+
+    /// Consumes the cartridge and returns the PRG-ROM as a
+    /// reference-counted slice (cheap to clone for snapshots).
+    pub(super) fn into_parts(self) -> (Arc<[u8]>, Vec<u8>, Mirroring) {
+        (self.prg_rom, self.chr_rom, self.mirroring)
     }
 
     /// Returns the CHR-ROM data.
@@ -190,7 +198,7 @@ fn parse_ines(input: &[u8]) -> nom::IResult<&[u8], Cartridge> {
     let (input, chr_rom) = take(chr_size).parse(input)?;
 
     let cart = Cartridge {
-        prg_rom: prg_rom.to_vec(),
+        prg_rom: Arc::from(prg_rom),
         chr_rom: chr_rom.to_vec(),
         mapper_id: header.mapper_id(),
         mirroring: header.mirroring(),

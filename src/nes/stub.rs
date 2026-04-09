@@ -5,7 +5,7 @@
 
 #![allow(dead_code)]
 
-use super::Emulator;
+use super::{Emulator, Snapshot};
 use super::controller::Buttons;
 use super::framebuffer::{Framebuffer, HEIGHT, WIDTH};
 use super::region::Region;
@@ -91,4 +91,10 @@ impl Emulator for StubEmulator {
     }
 
     fn reset(&mut self) {}
+
+    fn snapshot(&self) -> Option<Snapshot> {
+        None
+    }
+
+    fn restore(&mut self, _snapshot: &Snapshot) {}
 }

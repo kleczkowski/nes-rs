@@ -12,6 +12,7 @@ const BYTES_PER_PIXEL: usize = 4; // RGBA
 ///
 /// Pixels are stored in row-major order as `[R, G, B, A]` tuples,
 /// matching the layout expected by GPU texture uploads.
+#[derive(Clone)]
 pub(crate) struct Framebuffer {
     pixels: Vec<u8>,
 }

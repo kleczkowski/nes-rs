@@ -11,6 +11,7 @@
 //! This is used exclusively by Mike Tyson's Punch-Out!!
 
 use std::cell::Cell;
+use std::sync::Arc;
 
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
@@ -19,8 +20,9 @@ const PRG_BANK_SIZE: usize = 8_192;
 const CHR_BANK_SIZE: usize = 4_096;
 
 /// MMC2 mapper with latch-based CHR switching.
+#[derive(Clone)]
 pub(super) struct Mmc2 {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr_rom: Vec<u8>,
     prg_bank_count: u8,
 
@@ -50,10 +52,11 @@ pub(super) struct Mmc2 {
 
 impl Mmc2 {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let prg_bank_count = (cart.prg_rom().len() / PRG_BANK_SIZE) as u8;
+        let (prg_rom, chr_rom, mirroring) = cart.into_parts();
+        let prg_bank_count = (prg_rom.len() / PRG_BANK_SIZE) as u8;
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
-            chr_rom: cart.chr_rom().to_vec(),
+            prg_rom,
+            chr_rom,
             prg_bank_count,
             prg_bank: 0,
             chr_bank_0_fd: 0,
@@ -62,7 +65,7 @@ impl Mmc2 {
             chr_bank_1_fe: 0,
             latch_0: Cell::new(true),
             latch_1: Cell::new(true),
-            mirroring: cart.mirroring(),
+            mirroring,
         }
     }
 
@@ -147,5 +150,9 @@ impl Mapper for Mmc2 {
 
     fn mirroring(&self) -> Mirroring {
         self.mirroring
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

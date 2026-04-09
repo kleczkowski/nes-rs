@@ -64,6 +64,32 @@ pub(crate) trait Emulator {
     /// Performs a soft reset (re-reads the reset vector without
     /// reloading the cartridge). No-op if no ROM is loaded.
     fn reset(&mut self);
+
+    /// Captures the current emulator state for rewind.
+    /// Returns `None` if no ROM is loaded.
+    fn snapshot(&self) -> Option<Snapshot>;
+
+    /// Restores a previously captured snapshot.
+    fn restore(&mut self, snapshot: &Snapshot);
+}
+
+/// Opaque emulator state snapshot used for rewind.
+///
+/// Cloning a snapshot is cheap: PRG-ROM uses `Arc` (reference
+/// count bump), and mutable state (RAM, VRAM, registers) is small.
+#[derive(Clone)]
+pub(crate) struct Snapshot {
+    cpu: Cpu,
+    ppu: Ppu,
+    bus: Bus,
+    apu: Option<Apu>,
+    fb_front: Framebuffer,
+    sample_clock: u32,
+    hp1_in: f32,
+    hp1_out: f32,
+    hp2_in: f32,
+    hp2_out: f32,
+    ppu_frac: u16,
 }
 
 /// Real NES emulator — owns CPU, PPU, APU, Bus, and Framebuffer.
@@ -305,5 +331,41 @@ impl Emulator for Nes {
             reset_vector = format_args!("${:04X}", self.cpu.pc),
             "soft reset",
         );
+    }
+
+    fn snapshot(&self) -> Option<Snapshot> {
+        // No ROM loaded → nothing to snapshot.
+        if !self.bus.has_mapper() {
+            return None;
+        }
+        Some(Snapshot {
+            cpu: self.cpu.clone(),
+            ppu: self.ppu.clone(),
+            bus: self.bus.clone(),
+            apu: self.apu.clone(),
+            fb_front: self.fb_front.clone(),
+            sample_clock: self.sample_clock,
+            hp1_in: self.hp1_in,
+            hp1_out: self.hp1_out,
+            hp2_in: self.hp2_in,
+            hp2_out: self.hp2_out,
+            ppu_frac: self.ppu_frac,
+        })
+    }
+
+    fn restore(&mut self, snapshot: &Snapshot) {
+        self.cpu = snapshot.cpu.clone();
+        self.ppu = snapshot.ppu.clone();
+        self.bus = snapshot.bus.clone();
+        self.apu.clone_from(&snapshot.apu);
+        self.fb = Framebuffer::new();
+        self.fb_front = snapshot.fb_front.clone();
+        self.frame_ready = false;
+        self.sample_clock = snapshot.sample_clock;
+        self.hp1_in = snapshot.hp1_in;
+        self.hp1_out = snapshot.hp1_out;
+        self.hp2_in = snapshot.hp2_in;
+        self.hp2_out = snapshot.hp2_out;
+        self.ppu_frac = snapshot.ppu_frac;
     }
 }

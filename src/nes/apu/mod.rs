@@ -30,6 +30,7 @@ use sequencer::FrameSequencer;
 /// Down-sampling to 44 100 Hz is handled by the caller (Nes) using
 /// a Bresenham counter, matching the architecture of other
 /// emulators like nez.
+#[derive(Clone)]
 pub(crate) struct Apu {
     /// Pulse channel 1.
     pulse1: Pulse,

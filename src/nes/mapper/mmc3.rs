@@ -22,6 +22,8 @@
 //! | $E000         | Even     | IRQ disable + acknowledge    |
 //! | $E001         | Odd      | IRQ enable                   |
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
@@ -29,9 +31,10 @@ const PRG_BANK_SIZE: usize = 8_192;
 const CHR_BANK_1K: usize = 1_024;
 
 /// MMC3 mapper with scanline IRQ counter.
+#[derive(Clone)]
 #[allow(clippy::struct_excessive_bools)]
 pub(super) struct Mmc3 {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr: Vec<u8>,
     chr_is_ram: bool,
     prg_bank_count: u8,
@@ -65,17 +68,18 @@ pub(super) struct Mmc3 {
 
 impl Mmc3 {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let chr_is_ram = cart.chr_rom().is_empty();
+        let (prg_rom, chr_rom, mirroring) = cart.into_parts();
+        let chr_is_ram = chr_rom.is_empty();
         let chr = if chr_is_ram {
             vec![0; 8192]
         } else {
-            cart.chr_rom().to_vec()
+            chr_rom
         };
-        let prg_bank_count = (cart.prg_rom().len() / PRG_BANK_SIZE) as u8;
+        let prg_bank_count = (prg_rom.len() / PRG_BANK_SIZE) as u8;
         let chr_bank_count = (chr.len() / CHR_BANK_1K) as u16;
 
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
+            prg_rom,
             chr,
             chr_is_ram,
             prg_bank_count,
@@ -84,7 +88,7 @@ impl Mmc3 {
             prg_mode: false,
             chr_mode: false,
             regs: [0; 8],
-            mirroring: cart.mirroring(),
+            mirroring,
             irq_latch: 0,
             irq_counter: 0,
             irq_reload: false,
@@ -231,5 +235,9 @@ impl Mapper for Mmc3 {
 
     fn irq_clear(&mut self) {
         self.irq_pending = false;
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

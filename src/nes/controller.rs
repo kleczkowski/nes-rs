@@ -34,7 +34,7 @@ bitflags! {
 /// State of one NES controller port, including the shift register
 /// used by the CPU to read buttons serially.
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct Controller {
+pub(super) struct Controller {
     /// Current button state (updated by the frontend each frame).
     buttons: Buttons,
     /// Latched copy of buttons (captured on strobe).

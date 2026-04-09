@@ -6,6 +6,7 @@ mod filebrowser;
 mod input;
 mod video;
 
+use std::collections::VecDeque;
 use std::path::Path;
 
 use anyhow::Context;
@@ -15,7 +16,7 @@ use raylib::prelude::*;
 
 use config::Config;
 
-use crate::nes::{self, Emulator, Region};
+use crate::nes::{self, Emulator, Region, Snapshot};
 
 /// NES screen dimensions as i32 for raylib API compatibility.
 const SCREEN_W: i32 = nes::SCREEN_WIDTH as i32;
@@ -72,8 +73,12 @@ fn load_rom_from_path(emu: &mut impl Emulator, path: &Path) {
 /// Speed multiplier when fast-forwarding (hold Tab).
 const FAST_FORWARD_MULT: f64 = 4.0;
 
+/// Maximum number of snapshots kept for rewind (~10 s at 60 fps).
+const REWIND_CAPACITY: usize = 600;
+
 /// Tracks settings that need to be synced between the config panel
 /// and the system (raylib / emulator).
+#[allow(clippy::struct_excessive_bools)]
 struct App {
     config: Config,
     prev_time: f64,
@@ -82,6 +87,10 @@ struct App {
     prev_region: Region,
     paused: bool,
     muted: bool,
+    /// Rewind snapshot ring buffer (oldest at front).
+    rewind_buf: VecDeque<Snapshot>,
+    /// Whether we are currently rewinding (R held).
+    rewinding: bool,
 }
 
 impl App {
@@ -96,6 +105,8 @@ impl App {
             prev_region: initial_region,
             paused: false,
             muted: false,
+            rewind_buf: VecDeque::with_capacity(REWIND_CAPACITY),
+            rewinding: false,
         }
     }
 
@@ -170,6 +181,7 @@ impl App {
             if let Some(path) = filebrowser::pick_rom() {
                 load_rom_from_path(emu, &path);
                 self.paused = false;
+                self.rewind_buf.clear();
             }
             // Reset timing so the emulator doesn't try to catch up
             // for the time spent in the dialog.
@@ -179,6 +191,7 @@ impl App {
         if rl.is_key_pressed(KeyboardKey::KEY_F5) {
             emu.reset();
             self.paused = false;
+            self.rewind_buf.clear();
         }
 
         if rl.is_key_pressed(KeyboardKey::KEY_F11) {
@@ -212,6 +225,7 @@ impl App {
             if let Some(path) = dropped.paths().first() {
                 load_rom_from_path(emu, Path::new(path));
                 self.paused = false;
+                self.rewind_buf.clear();
             }
         }
     }
@@ -273,11 +287,17 @@ impl App {
 
         if !self.config.is_visible() {
             draw.draw_fps(4, 4);
+            let mut label_y = 24;
+            if self.rewinding {
+                draw.draw_text("◀◀ REWIND", 4, label_y, 20, Color::ORANGE);
+                label_y += 22;
+            }
             if self.paused {
-                draw.draw_text("PAUSED", 4, 24, 20, Color::YELLOW);
+                draw.draw_text("PAUSED", 4, label_y, 20, Color::YELLOW);
+                label_y += 22;
             }
             if self.muted {
-                draw.draw_text("MUTED", 4, if self.paused { 46 } else { 24 }, 20, Color::GRAY);
+                draw.draw_text("MUTED", 4, label_y, 20, Color::GRAY);
             }
         }
 
@@ -306,16 +326,47 @@ pub(crate) fn run(emu: &mut impl Emulator, region_override: Option<Region>) -> a
         app.handle_input(&mut rl, emu);
         app.sync_region(&mut rl, emu);
 
-        // Apply mute.
-        let volume = if app.muted { 0.0 } else { app.config.volume / 100.0 };
+        // Apply mute (also mute during rewind).
+        let volume = if app.muted || app.rewinding {
+            0.0
+        } else {
+            app.config.volume / 100.0
+        };
         audio_stream.set_volume(volume);
 
-        let buttons = app.config.poll_buttons(&rl);
-        emu.set_buttons(0, buttons);
+        // Rewind logic.
+        let rewinding_now = rl.is_key_down(KeyboardKey::KEY_R)
+            && !app.config.is_visible()
+            && !app.rewind_buf.is_empty();
 
-        if app.should_run() {
-            let dt = app.effective_dt(&rl, dt_ms);
-            emu.update(dt);
+        if rewinding_now {
+            // Pop one snapshot per frame and restore it.
+            if let Some(snap) = app.rewind_buf.pop_back() {
+                emu.restore(&snap);
+            }
+            app.rewinding = true;
+        } else {
+            if app.rewinding {
+                // Just released R — resume from current state.
+                app.rewinding = false;
+                app.prev_time = rl.get_time();
+            }
+
+            let buttons = app.config.poll_buttons(&rl);
+            emu.set_buttons(0, buttons);
+
+            if app.should_run() {
+                let dt = app.effective_dt(&rl, dt_ms);
+                emu.update(dt);
+
+                // Save a snapshot after each frame (ring buffer).
+                if let Some(snap) = emu.snapshot() {
+                    if app.rewind_buf.len() >= REWIND_CAPACITY {
+                        let _ = app.rewind_buf.pop_front();
+                    }
+                    app.rewind_buf.push_back(snap);
+                }
+            }
         }
 
         app.render(&mut rl, &thread, &mut texture, emu)?;

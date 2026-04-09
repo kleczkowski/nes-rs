@@ -47,6 +47,7 @@ const RESET_VECTOR: u16 = 0xFFFC;
 const IRQ_VECTOR: u16 = 0xFFFE;
 
 /// NES CPU registers and cycle counter.
+#[derive(Clone)]
 pub(crate) struct Cpu {
     /// Accumulator.
     pub(super) a: u8,

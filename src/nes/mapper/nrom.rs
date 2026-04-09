@@ -6,6 +6,8 @@
 //!
 //! CHR-ROM (or CHR-RAM) is fixed at PPU $0000–$1FFF.
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
@@ -13,8 +15,9 @@ use crate::nes::cartridge::{Cartridge, Mirroring};
 const PRG_START: u16 = 0x8000;
 
 /// NROM mapper — fixed PRG and CHR banks.
+#[derive(Clone)]
 pub(super) struct Nrom {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr: Vec<u8>,
     chr_is_ram: bool,
     mirroring: Mirroring,
@@ -22,17 +25,18 @@ pub(super) struct Nrom {
 
 impl Nrom {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let chr_is_ram = cart.chr_rom().is_empty();
+        let (prg_rom, chr_rom, mirroring) = cart.into_parts();
+        let chr_is_ram = chr_rom.is_empty();
         let chr = if chr_is_ram {
             vec![0; 8192]
         } else {
-            cart.chr_rom().to_vec()
+            chr_rom
         };
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
+            prg_rom,
             chr,
             chr_is_ram,
-            mirroring: cart.mirroring(),
+            mirroring,
         }
     }
 }
@@ -66,5 +70,9 @@ impl Mapper for Nrom {
 
     fn mirroring(&self) -> Mirroring {
         self.mirroring
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

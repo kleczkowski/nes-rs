@@ -6,6 +6,8 @@
 //!
 //! A write to $8000–$FFFF sets the low bits as the bank number.
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
@@ -13,8 +15,9 @@ use crate::nes::cartridge::{Cartridge, Mirroring};
 const PRG_BANK_SIZE: usize = 16_384;
 
 /// `UxROM` mapper — switchable lower PRG bank, fixed upper bank.
+#[derive(Clone)]
 pub(super) struct Uxrom {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr_ram: Vec<u8>,
     mirroring: Mirroring,
     /// Currently selected 16 KB bank for $8000–$BFFF.
@@ -25,11 +28,12 @@ pub(super) struct Uxrom {
 
 impl Uxrom {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let bank_count = (cart.prg_rom().len() / PRG_BANK_SIZE) as u8;
+        let (prg_rom, _, mirroring) = cart.into_parts();
+        let bank_count = (prg_rom.len() / PRG_BANK_SIZE) as u8;
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
+            prg_rom,
             chr_ram: vec![0; 8192],
-            mirroring: cart.mirroring(),
+            mirroring,
             bank_select: 0,
             bank_count,
         }
@@ -72,5 +76,9 @@ impl Mapper for Uxrom {
 
     fn mirroring(&self) -> Mirroring {
         self.mirroring
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

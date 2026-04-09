@@ -9,14 +9,17 @@
 //!
 //! Used by: Micro Machines, Fire Hawk, Bee 52.
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
 const PRG_BANK_SIZE: usize = 16_384;
 
 /// Camerica mapper — `UxROM` variant for Codemasters games.
+#[derive(Clone)]
 pub(super) struct Camerica {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr_ram: Vec<u8>,
     mirroring: Mirroring,
     bank_select: u8,
@@ -25,11 +28,12 @@ pub(super) struct Camerica {
 
 impl Camerica {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let bank_count = (cart.prg_rom().len() / PRG_BANK_SIZE).max(1) as u8;
+        let (prg_rom, _, mirroring) = cart.into_parts();
+        let bank_count = (prg_rom.len() / PRG_BANK_SIZE).max(1) as u8;
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
+            prg_rom,
             chr_ram: vec![0; 8192],
-            mirroring: cart.mirroring(),
+            mirroring,
             bank_select: 0,
             bank_count,
         }
@@ -68,5 +72,9 @@ impl Mapper for Camerica {
 
     fn mirroring(&self) -> Mirroring {
         self.mirroring
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

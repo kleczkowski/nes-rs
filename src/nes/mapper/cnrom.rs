@@ -5,6 +5,8 @@
 //!
 //! A write to $8000–$FFFF sets the low bits as the CHR bank number.
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
@@ -12,8 +14,9 @@ use crate::nes::cartridge::{Cartridge, Mirroring};
 const CHR_BANK_SIZE: usize = 8192;
 
 /// CNROM mapper — fixed PRG, switchable CHR bank.
+#[derive(Clone)]
 pub(super) struct Cnrom {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr_rom: Vec<u8>,
     mirroring: Mirroring,
     /// Currently selected 8 KB CHR bank.
@@ -24,11 +27,12 @@ pub(super) struct Cnrom {
 
 impl Cnrom {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let chr_bank_count = (cart.chr_rom().len() / CHR_BANK_SIZE).max(1) as u8;
+        let (prg_rom, chr_rom, mirroring) = cart.into_parts();
+        let chr_bank_count = (chr_rom.len() / CHR_BANK_SIZE).max(1) as u8;
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
-            chr_rom: cart.chr_rom().to_vec(),
-            mirroring: cart.mirroring(),
+            prg_rom,
+            chr_rom,
+            mirroring,
             chr_bank: 0,
             chr_bank_count,
         }
@@ -62,5 +66,9 @@ impl Mapper for Cnrom {
 
     fn mirroring(&self) -> Mirroring {
         self.mirroring
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

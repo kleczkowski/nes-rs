@@ -44,6 +44,18 @@ pub(crate) struct Bus {
     controller2: Controller,
 }
 
+impl Clone for Bus {
+    fn clone(&self) -> Self {
+        Self {
+            ram: self.ram,
+            mapper: self.mapper.as_ref().map(|m| m.box_clone()),
+            apu: self.apu.clone(),
+            controller1: self.controller1,
+            controller2: self.controller2,
+        }
+    }
+}
+
 impl Bus {
     /// Creates a bus with zeroed RAM, no cartridge, and default peripherals.
     pub(crate) fn new() -> Self {
@@ -77,6 +89,11 @@ impl Bus {
     /// Returns a mutable reference to the active mapper, if any.
     pub(super) fn mapper_mut(&mut self) -> Option<&mut (dyn Mapper + 'static)> {
         self.mapper.as_deref_mut()
+    }
+
+    /// Returns `true` if a cartridge is loaded.
+    pub(super) fn has_mapper(&self) -> bool {
+        self.mapper.is_some()
     }
 
     /// Reads a byte without side effects (used for DMC sample fetches).
@@ -179,6 +196,9 @@ impl Mapper for NullMapper {
     fn ppu_write(&mut self, _addr: u16, _val: u8) {}
     fn mirroring(&self) -> super::cartridge::Mirroring {
         super::cartridge::Mirroring::Horizontal
+    }
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(Self)
     }
 }
 

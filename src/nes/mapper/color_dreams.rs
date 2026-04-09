@@ -8,6 +8,8 @@
 //!
 //! Used by unlicensed games: Crystal Mines, Bible Adventures, etc.
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
@@ -15,8 +17,9 @@ const PRG_BANK_SIZE: usize = 32_768;
 const CHR_BANK_SIZE: usize = 8_192;
 
 /// Color Dreams mapper — simple 32 KB PRG + 8 KB CHR switching.
+#[derive(Clone)]
 pub(super) struct ColorDreams {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr_rom: Vec<u8>,
     mirroring: Mirroring,
     prg_bank: u8,
@@ -27,12 +30,13 @@ pub(super) struct ColorDreams {
 
 impl ColorDreams {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let prg_bank_count = (cart.prg_rom().len() / PRG_BANK_SIZE).max(1) as u8;
-        let chr_bank_count = (cart.chr_rom().len() / CHR_BANK_SIZE).max(1) as u8;
+        let (prg_rom, chr_rom, mirroring) = cart.into_parts();
+        let prg_bank_count = (prg_rom.len() / PRG_BANK_SIZE).max(1) as u8;
+        let chr_bank_count = (chr_rom.len() / CHR_BANK_SIZE).max(1) as u8;
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
-            chr_rom: cart.chr_rom().to_vec(),
-            mirroring: cart.mirroring(),
+            prg_rom,
+            chr_rom,
+            mirroring,
             prg_bank: 0,
             chr_bank: 0,
             prg_bank_count,
@@ -68,5 +72,9 @@ impl Mapper for ColorDreams {
 
     fn mirroring(&self) -> Mirroring {
         self.mirroring
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }

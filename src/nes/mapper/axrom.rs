@@ -6,14 +6,17 @@
 //!
 //! Used by: Battletoads, Marble Madness, Wizards & Warriors.
 
+use std::sync::Arc;
+
 use super::Mapper;
 use crate::nes::cartridge::{Cartridge, Mirroring};
 
 const PRG_BANK_SIZE: usize = 32_768;
 
 /// `AxROM` mapper — 32 KB PRG switching, single-screen mirroring.
+#[derive(Clone)]
 pub(super) struct Axrom {
-    prg_rom: Vec<u8>,
+    prg_rom: Arc<[u8]>,
     chr_ram: Vec<u8>,
     /// Currently selected 32 KB PRG bank (bits 0–2 of write).
     bank_select: u8,
@@ -25,9 +28,10 @@ pub(super) struct Axrom {
 
 impl Axrom {
     pub(super) fn new(cart: Cartridge) -> Self {
-        let bank_count = (cart.prg_rom().len() / PRG_BANK_SIZE).max(1) as u8;
+        let (prg_rom, _, _mirroring) = cart.into_parts();
+        let bank_count = (prg_rom.len() / PRG_BANK_SIZE).max(1) as u8;
         Self {
-            prg_rom: cart.prg_rom().to_vec(),
+            prg_rom,
             chr_ram: vec![0; 8192],
             bank_select: 0,
             bank_count,
@@ -69,5 +73,9 @@ impl Mapper for Axrom {
         } else {
             Mirroring::SingleHigh
         }
+    }
+
+    fn box_clone(&self) -> Box<dyn Mapper> {
+        Box::new(self.clone())
     }
 }
