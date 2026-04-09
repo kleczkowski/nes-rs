@@ -3,6 +3,7 @@
 use raylib::prelude::*;
 
 use super::input::{Controller, Gamepad, Keyboard};
+use super::video::ScaleMode;
 use crate::nes::Buttons;
 
 /// All user-facing settings in one panel, toggled by F1.
@@ -20,6 +21,8 @@ pub(super) struct Config {
     pub(super) vsync: bool,
     /// Remove the 8-sprite-per-scanline limit.
     pub(super) no_sprite_limit: bool,
+    /// How the framebuffer is scaled to the window.
+    pub(super) scale_mode: ScaleMode,
 
     visible: bool,
     fps_edit: bool,
@@ -36,6 +39,7 @@ impl Config {
             target_fps: 60,
             vsync: true,
             no_sprite_limit: false,
+            scale_mode: ScaleMode::AspectFit,
             visible: false,
             fps_edit: false,
             tab: 0,
@@ -171,5 +175,24 @@ impl Config {
             "No sprite limit",
             &mut self.no_sprite_limit,
         );
+
+        // Scale mode.
+        let smy = sy + row as f32;
+        let _ = draw.gui_label(
+            Rectangle::new((px + pad) as f32, smy, 70.0, 20.0),
+            "Scaling",
+        );
+        let mut idx = self.scale_mode.to_index();
+        let _ = draw.gui_toggle_group(
+            Rectangle::new(
+                (px + pad + 70) as f32,
+                smy,
+                100.0,
+                20.0,
+            ),
+            ScaleMode::LABELS,
+            &mut idx,
+        );
+        self.scale_mode = ScaleMode::from_index(idx.clamp(0, ScaleMode::COUNT - 1));
     }
 }
