@@ -47,6 +47,12 @@ pub(crate) trait Emulator {
     /// Returns the active TV region.
     fn region(&self) -> Region;
 
+    /// Sets or clears the region override.
+    ///
+    /// `Some(region)` forces that region; `None` reverts to the
+    /// region detected from the ROM header.
+    fn set_region_override(&mut self, region: Option<Region>);
+
     /// Loads an iNES ROM, resetting the emulator.
     ///
     /// # Errors
@@ -78,7 +84,9 @@ pub(crate) struct Nes {
     hp2_out: f32,
     /// Active TV region (determines all timing).
     region: Region,
-    /// CLI override — when set, ignores the cartridge header.
+    /// Region detected from the most recently loaded ROM's header.
+    detected_region: Region,
+    /// Override — when set, ignores the cartridge header.
     region_override: Option<Region>,
     /// Fractional PPU dot accumulator for non-integer PPU/CPU ratios.
     ppu_frac: u16,
@@ -110,6 +118,7 @@ impl Nes {
             hp2_in: 0.0,
             hp2_out: 0.0,
             region: Region::default(),
+            detected_region: Region::default(),
             region_override,
             ppu_frac: 0,
         }
@@ -242,10 +251,19 @@ impl Emulator for Nes {
         self.region
     }
 
+    fn set_region_override(&mut self, region: Option<Region>) {
+        self.region_override = region;
+        let effective = region.unwrap_or(self.detected_region);
+        if effective != self.region {
+            self.apply_region(effective);
+        }
+    }
+
     fn load_rom(&mut self, data: &[u8]) -> anyhow::Result<()> {
         tracing::info!(size = data.len(), "loading ROM");
         let cart = Cartridge::from_ines(data)?;
         let detected = cart.region();
+        self.detected_region = detected;
         let region = self.region_override.unwrap_or(detected);
         if self.region_override.is_some() && detected != region {
             tracing::info!(

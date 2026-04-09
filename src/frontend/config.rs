@@ -4,7 +4,7 @@ use raylib::prelude::*;
 
 use super::input::{Controller, Gamepad, Keyboard};
 use super::video::ScaleMode;
-use crate::nes::Buttons;
+use crate::nes::{Buttons, Region};
 
 /// All user-facing settings in one panel, toggled by F1.
 #[allow(clippy::struct_excessive_bools)]
@@ -23,6 +23,8 @@ pub(super) struct Config {
     pub(super) no_sprite_limit: bool,
     /// How the framebuffer is scaled to the window.
     pub(super) scale_mode: ScaleMode,
+    /// Region override: `None` = auto-detect from ROM, `Some` = forced.
+    pub(super) region_override: Option<Region>,
 
     visible: bool,
     fps_edit: bool,
@@ -40,6 +42,7 @@ impl Config {
             vsync: true,
             no_sprite_limit: false,
             scale_mode: ScaleMode::AspectFit,
+            region_override: None,
             visible: false,
             fps_edit: false,
             tab: 0,
@@ -194,5 +197,37 @@ impl Config {
             &mut idx,
         );
         self.scale_mode = ScaleMode::from_index(idx.clamp(0, ScaleMode::COUNT - 1));
+
+        // Region.
+        let ry = smy + row as f32;
+        let _ = draw.gui_label(
+            Rectangle::new((px + pad) as f32, ry, 70.0, 20.0),
+            "Region",
+        );
+        let mut ridx = region_to_index(self.region_override);
+        let _ = draw.gui_toggle_group(
+            Rectangle::new((px + pad + 70) as f32, ry, 100.0, 20.0),
+            "Auto;NTSC;PAL",
+            &mut ridx,
+        );
+        self.region_override = region_from_index(ridx);
+    }
+}
+
+/// Maps `Option<Region>` to a toggle group index (0=Auto, 1=NTSC, 2=PAL).
+fn region_to_index(r: Option<Region>) -> i32 {
+    match r {
+        None => 0,
+        Some(Region::Ntsc) => 1,
+        Some(Region::Pal) => 2,
+    }
+}
+
+/// Maps a toggle group index back to `Option<Region>`.
+fn region_from_index(i: i32) -> Option<Region> {
+    match i {
+        1 => Some(Region::Ntsc),
+        2 => Some(Region::Pal),
+        _ => None,
     }
 }

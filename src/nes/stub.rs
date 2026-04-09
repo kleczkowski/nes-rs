@@ -84,6 +84,8 @@ impl Emulator for StubEmulator {
         Region::default()
     }
 
+    fn set_region_override(&mut self, _region: Option<Region>) {}
+
     fn load_rom(&mut self, _data: &[u8]) -> anyhow::Result<()> {
         Ok(())
     }

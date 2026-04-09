@@ -46,5 +46,5 @@ fn main() -> anyhow::Result<()> {
         tracing::info!("starting with no ROM loaded — press F3 to open file browser");
     }
 
-    frontend::run(&mut emu)
+    frontend::run(&mut emu, args.region)
 }

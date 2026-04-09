@@ -83,9 +83,11 @@ struct App {
 }
 
 impl App {
-    fn new(initial_region: Region) -> Self {
+    fn new(initial_region: Region, region_override: Option<Region>) -> Self {
+        let mut config = Config::new();
+        config.region_override = region_override;
         Self {
-            config: Config::new(),
+            config,
             prev_time: 0.0,
             applied_fps: 0,
             applied_vsync: false,
@@ -147,6 +149,7 @@ impl App {
 
         audio_stream.set_volume(self.config.volume / 100.0);
         emu.set_sprite_limit(!self.config.no_sprite_limit);
+        emu.set_region_override(self.config.region_override);
     }
 
     /// Returns wall-clock delta since the last call, in milliseconds.
@@ -232,7 +235,10 @@ impl App {
 // ── Entry point ─────────────────────────────────────────────────
 
 /// Opens a window and runs the emulator loop until the user closes it.
-pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
+pub(crate) fn run(
+    emu: &mut impl Emulator,
+    region_override: Option<Region>,
+) -> anyhow::Result<()> {
     let (mut rl, thread) = init_window();
     rl.set_window_min_size(SCREEN_W, SCREEN_H);
     let mut texture = init_texture(&mut rl, &thread)?;
@@ -241,7 +247,7 @@ pub(crate) fn run(emu: &mut impl Emulator) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("failed to initialize audio: {e}"))?;
     let audio_stream = audio::init_audio_stream(&rl_audio);
 
-    let mut app = App::new(emu.region());
+    let mut app = App::new(emu.region(), region_override);
     app.apply_initial_settings(&mut rl, &audio_stream);
 
     while !rl.window_should_close() {
