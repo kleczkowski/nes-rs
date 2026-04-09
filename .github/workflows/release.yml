@@ -111,6 +111,9 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Flatten artifacts
+        run: find artifacts -type f -exec mv {} artifacts/ \;
+
       # github.ref_name is safe here — tags are created by repo
       # maintainers, not by external contributors.
       - name: Create GitHub Release
