@@ -23,6 +23,8 @@ pub(super) struct Config {
     pub(super) no_sprite_limit: bool,
     /// How the framebuffer is scaled to the window.
     pub(super) scale_mode: ScaleMode,
+    /// Integer scale factor for Centered mode (1–10).
+    pub(super) centered_scale: i32,
     /// Region override: `None` = auto-detect from ROM, `Some` = forced.
     pub(super) region_override: Option<Region>,
 
@@ -42,6 +44,7 @@ impl Config {
             vsync: true,
             no_sprite_limit: false,
             scale_mode: ScaleMode::AspectFit,
+            centered_scale: 3,
             region_override: None,
             visible: false,
             fps_edit: false,
@@ -193,8 +196,30 @@ impl Config {
         );
         self.scale_mode = ScaleMode::from_index(idx.clamp(0, ScaleMode::COUNT - 1));
 
+        // Centered scale factor (only shown when Centered is selected).
+        if self.scale_mode == ScaleMode::Centered {
+            let sfy = smy + row as f32;
+            let _ = draw.gui_label(
+                Rectangle::new((px + pad) as f32, sfy, 70.0, 20.0),
+                "Scale",
+            );
+            let _ = draw.gui_spinner(
+                Rectangle::new((px + pad + 70) as f32, sfy, 120.0, 20.0),
+                "",
+                &mut self.centered_scale,
+                1,
+                10,
+                false,
+            );
+        }
+
         // Region.
-        let ry = smy + row as f32;
+        let extra = if self.scale_mode == ScaleMode::Centered {
+            row
+        } else {
+            0
+        };
+        let ry = smy + (row + extra) as f32;
         let _ = draw.gui_label(Rectangle::new((px + pad) as f32, ry, 70.0, 20.0), "Region");
         let mut ridx = region_to_index(self.region_override);
         let _ = draw.gui_toggle_group(

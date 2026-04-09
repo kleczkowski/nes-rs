@@ -47,12 +47,21 @@ impl ScaleMode {
 
 /// Computes the destination rectangle for the NES framebuffer
 /// given the current window size and scaling mode.
-pub(super) fn scale_dest(mode: ScaleMode, win_w: f32, win_h: f32) -> Rectangle {
+///
+/// `centered_scale` is only used by [`ScaleMode::Centered`] and
+/// multiplies the native resolution by an integer factor.
+pub(super) fn scale_dest(mode: ScaleMode, win_w: f32, win_h: f32, centered_scale: i32) -> Rectangle {
     match mode {
         ScaleMode::Centered => {
-            let x = (win_w - SCREEN_W) / 2.0;
-            let y = (win_h - SCREEN_H) / 2.0;
-            Rectangle::new(x, y, SCREEN_W, SCREEN_H)
+            let scale = (centered_scale.max(1)) as f32;
+            let scaled_w = SCREEN_W * scale;
+            let scaled_h = SCREEN_H * scale;
+            Rectangle::new(
+                (win_w - scaled_w) / 2.0,
+                (win_h - scaled_h) / 2.0,
+                scaled_w,
+                scaled_h,
+            )
         }
         ScaleMode::AspectFit => {
             let scale = (win_w / SCREEN_W).min(win_h / SCREEN_H);

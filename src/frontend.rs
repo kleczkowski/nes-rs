@@ -69,6 +69,9 @@ fn load_rom_from_path(emu: &mut impl Emulator, path: &Path) {
 
 // ── App state ───────────────────────────────────────────────────
 
+/// Speed multiplier when fast-forwarding (hold Tab).
+const FAST_FORWARD_MULT: f64 = 4.0;
+
 /// Tracks settings that need to be synced between the config panel
 /// and the system (raylib / emulator).
 struct App {
@@ -77,6 +80,8 @@ struct App {
     applied_fps: i32,
     applied_vsync: bool,
     prev_region: Region,
+    paused: bool,
+    muted: bool,
 }
 
 impl App {
@@ -89,6 +94,8 @@ impl App {
             applied_fps: 0,
             applied_vsync: false,
             prev_region: initial_region,
+            paused: false,
+            muted: false,
         }
     }
 
@@ -153,9 +160,7 @@ impl App {
         dt_ms
     }
 
-    /// Handles hotkeys: F1 (config panel), F3 (file picker).
-    ///
-    /// Also processes drag-and-drop ROM loading.
+    /// Handles hotkeys and drag-and-drop ROM loading.
     fn handle_input(&mut self, rl: &mut RaylibHandle, emu: &mut impl Emulator) {
         if rl.is_key_pressed(KeyboardKey::KEY_F1) {
             self.config.toggle();
@@ -164,17 +169,65 @@ impl App {
         if rl.is_key_pressed(KeyboardKey::KEY_F3) {
             if let Some(path) = filebrowser::pick_rom() {
                 load_rom_from_path(emu, &path);
+                self.paused = false;
             }
             // Reset timing so the emulator doesn't try to catch up
             // for the time spent in the dialog.
             self.prev_time = rl.get_time();
         }
 
+        if rl.is_key_pressed(KeyboardKey::KEY_F5) {
+            emu.reset();
+            self.paused = false;
+        }
+
+        if rl.is_key_pressed(KeyboardKey::KEY_F11) {
+            #[allow(unsafe_code)]
+            if rl.is_window_fullscreen() {
+                rl.toggle_fullscreen();
+                rl.set_window_size(SCREEN_W * INITIAL_SCALE, SCREEN_H * INITIAL_SCALE);
+            } else {
+                let monitor = unsafe { ffi::GetCurrentMonitor() };
+                let mw = unsafe { ffi::GetMonitorWidth(monitor) };
+                let mh = unsafe { ffi::GetMonitorHeight(monitor) };
+                rl.set_window_size(mw, mh);
+                rl.toggle_fullscreen();
+            }
+            // Recreate timing baseline after mode switch.
+            self.prev_time = rl.get_time();
+        }
+
+        if rl.is_key_pressed(KeyboardKey::KEY_P) && !self.config.is_visible() {
+            self.paused = !self.paused;
+            tracing::info!(paused = self.paused, "pause toggled");
+        }
+
+        if rl.is_key_pressed(KeyboardKey::KEY_M) {
+            self.muted = !self.muted;
+            tracing::info!(muted = self.muted, "mute toggled");
+        }
+
         if rl.is_file_dropped() {
             let dropped = rl.load_dropped_files();
             if let Some(path) = dropped.paths().first() {
                 load_rom_from_path(emu, Path::new(path));
+                self.paused = false;
             }
+        }
+    }
+
+    /// Returns `true` if emulation should be running this frame.
+    fn should_run(&self) -> bool {
+        !self.paused && !self.config.is_visible()
+    }
+
+    /// Returns the effective dt, accounting for fast-forward.
+    fn effective_dt(&self, rl: &RaylibHandle, dt_ms: f64) -> f64 {
+        let dt = dt_ms.min(33.0);
+        if rl.is_key_down(KeyboardKey::KEY_TAB) && self.should_run() {
+            dt * FAST_FORWARD_MULT
+        } else {
+            dt
         }
     }
 
@@ -212,13 +265,20 @@ impl App {
         let win_w = draw.get_screen_width() as f32;
         let win_h = draw.get_screen_height() as f32;
         let src = video::framebuffer_src();
-        let dest = video::scale_dest(self.config.scale_mode, win_w, win_h);
+        let dest =
+            video::scale_dest(self.config.scale_mode, win_w, win_h, self.config.centered_scale);
         draw.draw_texture_pro(texture, src, dest, Vector2::zero(), 0.0, Color::WHITE);
 
         self.config.draw(&mut draw);
 
         if !self.config.is_visible() {
             draw.draw_fps(4, 4);
+            if self.paused {
+                draw.draw_text("PAUSED", 4, 24, 20, Color::YELLOW);
+            }
+            if self.muted {
+                draw.draw_text("MUTED", 4, if self.paused { 46 } else { 24 }, 20, Color::GRAY);
+            }
         }
 
         Ok(())
@@ -246,11 +306,16 @@ pub(crate) fn run(emu: &mut impl Emulator, region_override: Option<Region>) -> a
         app.handle_input(&mut rl, emu);
         app.sync_region(&mut rl, emu);
 
+        // Apply mute.
+        let volume = if app.muted { 0.0 } else { app.config.volume / 100.0 };
+        audio_stream.set_volume(volume);
+
         let buttons = app.config.poll_buttons(&rl);
         emu.set_buttons(0, buttons);
 
-        if !app.config.is_visible() {
-            emu.update(dt_ms.min(33.0));
+        if app.should_run() {
+            let dt = app.effective_dt(&rl, dt_ms);
+            emu.update(dt);
         }
 
         app.render(&mut rl, &thread, &mut texture, emu)?;

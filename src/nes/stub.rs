@@ -89,4 +89,6 @@ impl Emulator for StubEmulator {
     fn load_rom(&mut self, _data: &[u8]) -> anyhow::Result<()> {
         Ok(())
     }
+
+    fn reset(&mut self) {}
 }

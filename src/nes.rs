@@ -60,6 +60,10 @@ pub(crate) trait Emulator {
     /// Returns an error if the ROM is invalid or the mapper is
     /// unsupported.
     fn load_rom(&mut self, data: &[u8]) -> anyhow::Result<()>;
+
+    /// Performs a soft reset (re-reads the reset vector without
+    /// reloading the cartridge). No-op if no ROM is loaded.
+    fn reset(&mut self);
 }
 
 /// Real NES emulator — owns CPU, PPU, APU, Bus, and Framebuffer.
@@ -282,5 +286,24 @@ impl Emulator for Nes {
             "emulator reset complete",
         );
         Ok(())
+    }
+
+    fn reset(&mut self) {
+        if self.bus.mapper_mut().is_none() {
+            return;
+        }
+        self.bus.apu = self.apu.take();
+        self.cpu.reset(&mut self.bus, &mut self.ppu);
+        self.apu = self.bus.apu.take();
+        self.sample_clock = 0;
+        self.hp1_in = 0.0;
+        self.hp1_out = 0.0;
+        self.hp2_in = 0.0;
+        self.hp2_out = 0.0;
+        self.ppu_frac = 0;
+        tracing::info!(
+            reset_vector = format_args!("${:04X}", self.cpu.pc),
+            "soft reset",
+        );
     }
 }
