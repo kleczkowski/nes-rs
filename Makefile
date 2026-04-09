@@ -45,10 +45,16 @@ endif
 .PHONY: fmt
 fmt:
 	$(CARGO) fmt
+	taplo fmt
 
 .PHONY: fmt-check
 fmt-check:
 	$(CARGO) fmt -- --check
+	taplo fmt --check
+
+.PHONY: toml-lint
+toml-lint:
+	taplo lint
 
 .PHONY: lint
 lint:
@@ -59,7 +65,7 @@ test:
 	$(CARGO) test $(CARGO_FLAGS)
 
 .PHONY: check
-check: fmt-check lint test
+check: fmt-check toml-lint lint test
 
 # ── Build ────────────────────────────────────────────────────────
 

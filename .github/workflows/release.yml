@@ -53,14 +53,11 @@ jobs:
           key: release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: make release TARGET=${{ matrix.target }}
 
       - name: Package (Unix)
         if: matrix.archive == 'tar.gz'
-        run: |
-          cd target/${{ matrix.target }}/release
-          strip nes-rs 2>/dev/null || true
-          tar -czf ../../../nes-rs-${{ matrix.target }}.tar.gz nes-rs
+        run: make package TARGET=${{ matrix.target }}
         shell: bash
 
       - name: Package (Windows)

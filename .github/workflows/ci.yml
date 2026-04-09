@@ -15,7 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - run: rustup component add rustfmt
-      - run: cargo fmt -- --check
+      - run: cargo install taplo-cli --locked
+      - run: make fmt-check
+
+  toml-lint:
+    name: TOML lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - run: cargo install taplo-cli --locked
+      - run: make toml-lint
 
   clippy:
     name: Clippy (${{ matrix.os }})
@@ -48,7 +57,7 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo clippy -- -D warnings
+      - run: make lint
 
   test:
     name: Test (${{ matrix.os }})
@@ -80,4 +89,4 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo test
+      - run: make test
