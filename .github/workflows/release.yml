@@ -112,7 +112,9 @@ jobs:
           merge-multiple: true
 
       - name: Flatten artifacts
-        run: find artifacts -type f -exec mv {} artifacts/ \;
+        run: |
+          find artifacts -mindepth 2 -type f -exec mv {} artifacts/ \;
+          find artifacts -mindepth 1 -type d -empty -delete
 
       # github.ref_name is safe here — tags are created by repo
       # maintainers, not by external contributors.
