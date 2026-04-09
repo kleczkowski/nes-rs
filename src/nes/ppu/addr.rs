@@ -72,6 +72,9 @@ fn mirror_nametable(addr: u16, mirroring: Mirroring) -> usize {
         Mirroring::Vertical => table & 1,
         // Four-screen: 0→0, 1→1, 2→2, 3→3 (needs 4 KB)
         Mirroring::FourScreen => table,
+        // Single-screen: all four pages map to one physical page.
+        Mirroring::SingleLow => 0,
+        Mirroring::SingleHigh => 1,
     };
 
     usize::from(physical_table * 0x0400 + offset)

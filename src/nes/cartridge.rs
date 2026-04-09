@@ -43,6 +43,10 @@ pub(crate) enum Mirroring {
     Vertical,
     /// Four-screen VRAM (cartridge-provided).
     FourScreen,
+    /// Single-screen: all four nametables map to the first page.
+    SingleLow,
+    /// Single-screen: all four nametables map to the second page.
+    SingleHigh,
 }
 
 /// Parsed iNES header fields (internal to the parser).

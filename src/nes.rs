@@ -203,7 +203,12 @@ impl Emulator for Nes {
                     let Some(mapper) = self.bus.mapper_mut() else {
                         continue;
                     };
-                    match self.ppu.tick(mapper, &mut self.fb) {
+                    let ppu_out = self.ppu.tick(mapper, &mut self.fb);
+                    if mapper.irq_pending() {
+                        mapper.irq_clear();
+                        self.cpu.request_irq();
+                    }
+                    match ppu_out {
                         TickOutput::Nmi => self.cpu.request_nmi(),
                         TickOutput::FrameReady => {
                             std::mem::swap(&mut self.fb, &mut self.fb_front);

@@ -177,7 +177,12 @@ impl Ppu {
 
         match self.scanline {
             // Visible scanlines — render pixels.
-            0..=239 => render::render_cycle(self, mapper, fb),
+            0..=239 => {
+                render::render_cycle(self, mapper, fb);
+                if self.cycle == 260 && self.rendering_enabled() {
+                    mapper.notify_scanline();
+                }
+            }
             // VBlank start.
             241 => {
                 if self.cycle == 1 {
@@ -189,7 +194,12 @@ impl Ppu {
                 }
             }
             // Pre-render scanline — prepare for next frame.
-            s if s == self.pre_render_line => render::pre_render_cycle(self, mapper),
+            s if s == self.pre_render_line => {
+                render::pre_render_cycle(self, mapper);
+                if self.cycle == 260 && self.rendering_enabled() {
+                    mapper.notify_scanline();
+                }
+            }
             // Post-render (240) and VBlank — idle.
             _ => {}
         }
